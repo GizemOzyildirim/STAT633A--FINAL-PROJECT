@@ -15,6 +15,7 @@ library(dplyr)
 library(janitor)
 library(car)
 library(faraway)
+library(MuMIn)
 ```
 
 ```{r}
@@ -438,4 +439,18 @@ ggplot(life_exp4, aes(income_composition_of_resources, life_expectancy, colour =
 ggplot(life_exp4, aes(schooling, life_expectancy, colour = status)) +
   geom_point(alpha = 0.7) +
   geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+options(na.action = "na.fail")
+dredge_model <- dredge(lm_final, rank = "AIC",
+                       subset = 
+                         dc("adult_mortality", "adult_mortality:status") &
+                         dc("status", "adult_mortality:status") &
+                         dc("log(gdp)", "log(gdp):status") &
+                         dc("status", "log(gdp):status") &
+                         dc("income_composition_of_resources", "income_composition_of_resources:status") &
+                         dc("status", "income_composition_of_resources:status") &
+                         dc("schooling", "schooling:status") &
+                         dc("status", "schooling:status"))
+summary(dredge_model)
 ```
