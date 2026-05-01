@@ -98,23 +98,3 @@ The analysis may use the following methods:
 
 ---
 
-## 📁 Possible Repository Structure
-
-```text
-life-expectancy-analysis/
-│
-├── README.md
-├── data/
-│   └── Life_Expectancy_Data.csv
-│
-├── scripts/
-│   └── analysis.R
-│
-├── reports/
-│   └── life_expectancy_report.qmd
-│
-├── figures/
-│   └── plots/
-│
-└── output/
-    └── model_results/
