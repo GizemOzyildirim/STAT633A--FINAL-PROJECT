@@ -1,4 +1,4 @@
-# 🌍 Life Expectancy Dataset Analysis
+# 🌍 Life Expectancy Dataset Analysis 
 ### Authors: Wasima Alam, Jennifer Soper, Gizem Ozyildirim
 
 ## 📌 Project Overview
