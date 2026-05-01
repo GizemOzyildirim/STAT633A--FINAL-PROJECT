@@ -98,7 +98,7 @@ The analysis may use the following methods:
 
 ---
 
-## 📁 Suggested Repository Structure
+## 📁 Possible Repository Structure
 
 ```text
 life-expectancy-analysis/
