@@ -1,0 +1,371 @@
+---
+title: "Project, STAT 633A"
+author: "Wasima Alam"
+format: 
+   html:
+      self-contained: true
+echo: true
+---
+
+## 
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(janitor)
+library(car)
+library(faraway)
+```
+
+```{r}
+life_exp <- read.csv("Life Expectancy Data (1).csv")
+head(life_exp)
+
+# clean column names 
+life_exp <- clean_names(life_exp)
+
+life_exp2 <- life_exp |>
+  filter(year == 2015)
+summary(life_exp2)
+
+# check for missing values - NAs in Alcohol (177), Hepatitis B (9), BMI (2), Total expenditure (181), GDP (29), Population (41), Thinness 1 19 (2), Thinness 5 9 (2), Income (10), Schooling (10)
+
+life_exp3 <- life_exp2 |>
+  select(-alcohol, -total_expenditure, -percentage_expenditure)
+
+
+life_exp4 <- na.omit(life_exp3)
+```
+
+```{r}
+
+# Make status a dummy variable
+life_exp4$status <- as.factor(life_exp4$status)
+
+# Check reference level
+levels(life_exp4$status)
+
+# Fit multiple regression model
+
+mlr_model <- lm(
+  life_expectancy ~ status + adult_mortality + infant_deaths + hepatitis_b + measles + bmi +
+    under_five_deaths + polio + diphtheria + hiv_aids + population +
+    gdp + thinness_1_19_years + thinness_5_9_years +
+    income_composition_of_resources + schooling,
+  data = life_exp4
+)
+
+summary(mlr_model)
+```
+
+**Strong significant predictors (p \< 0.05)**
+
+**Marginally significant (0.05--0.10)**
+
+**Not significant (p \> 0.05)**
+
+Because the p-value is much smaller than 0.05, we reject the null hypothesis. There is strong evidence that life expectancy is related to at least one predictor in your model.
+
+```{r}
+# Scatter plot
+pairs(
+   life_expectancy ~ status + adult_mortality + infant_deaths + hepatitis_b + measles + bmi + population +
+    under_five_deaths + polio + diphtheria + hiv_aids +
+    gdp + thinness_1_19_years + thinness_5_9_years +
+    income_composition_of_resources + schooling,
+  data = life_exp4
+)
+
+
+```
+
+```{r}
+# Boxplot for dummy variable
+
+boxplot(life_expectancy ~ status,
+        data = life_exp4,
+        main = "Life Expectancy by Status",
+        xlab = "Status",
+        ylab = "Life Expectancy")
+```
+
+Developed countries live longer and more consistently than developing countries.
+
+**Potential problems:**
+
+```{r}
+# standardized residuals
+r <- rstandard(mlr_model)
+
+# fitted values
+yhat <- fitted(mlr_model)
+
+# residual plot
+plot(yhat, r,
+     xlab = "Fitted values",
+     ylab = "Standardized residuals",
+     main = "Standardized Residuals vs Fitted")
+abline(h = 0, lty = 2)
+
+# QQ plot
+qqnorm(r)
+qqline(r)
+
+# Shapiro-Wilk
+shapiro.test(resid(mlr_model))
+
+# outliers
+ind <- which(abs(r) > 2)
+life_exp4[ind, ]
+
+
+
+# leverage
+h <- hatvalues(mlr_model)
+n <- nrow(life_exp4)
+p <- length(coef(mlr_model)) - 1
+cutoff_leverage <- 2 * (p + 1) / n
+which(h > cutoff_leverage)
+
+# VIF
+library(car)
+
+vif(mlr_model)
+```
+
+```{r}
+pacman::p_load(MASS, car)
+summary(powerTransform(mlr_model))
+boxcox(mlr_model, lambda=seq(0.3, 0.65, by=0.05))
+```
+
+After doing the predictor variables transformation then will do the boxcox for Y transformation.
+
+```{r}
+step_model <- step(mlr_model, trace = 0)
+
+summary(step_model)
+AIC(step_model)
+```
+
+### Scatter plots - Response vs predictors
+
+```{r}
+plot(life_expectancy ~ adult_mortality, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ hepatitis_b, data = life_exp4)
+
+```
+
+```{r}
+plot(life_expectancy ~ measles, data = life_exp4)
+plot(life_expectancy ~ log(measles + 1), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ bmi, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ under_five_deaths, data = life_exp4)
+plot(life_expectancy ~ log(under_five_deaths + 1), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ polio, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ hiv_aids, data = life_exp4)
+plot(life_expectancy ~ log(hiv_aids), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ population, data = life_exp4)
+plot(life_expectancy ~ log(population), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ thinness_5_9_years, data = life_exp4)
+
+```
+
+```{r}
+plot(life_expectancy ~ schooling, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ infant_deaths, data = life_exp4)
+plot(life_expectancy ~ log(infant_deaths + 1), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ diphtheria, data = life_exp4)
+
+```
+
+```{r}
+plot(life_expectancy ~ gdp, data = life_exp4)
+plot(life_expectancy ~ log(gdp), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ thinness_1_19_years, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ income_composition_of_resources, data = life_exp4)
+```
+
+### Standardized Residuals vs predictors
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$adult_mortality, rstandard(mlr_model),xlab = "Adult Mortality", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plotlog(life_exp4$infant_deaths, rstandard(mlr_model),xlab = "infant death", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$adult_mortality, rstandard(mlr_model),xlab = "Adult Mortality", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$percentage_expenditure, rstandard(mlr_model),xlab = "percentage expenditure", ylab = "Standardized Residuals")
+plot(log(life_exp4$percentage_expenditure), rstandard(mlr_model),xlab = "percentage expenditure", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$hepatitis_b, rstandard(mlr_model),xlab = "hepatitis_b", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$measles, rstandard(mlr_model),xlab = "measles", ylab = "Standardized Residuals")
+plot(log(life_exp4$measles), rstandard(mlr_model),xlab = "Measles", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$bmi, rstandard(mlr_model),xlab = "bmi", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$under_five_deaths, rstandard(mlr_model),xlab = "under_five_deaths", ylab = "Standardized Residuals")
+plot(log(life_exp4$under_five_deaths), rstandard(mlr_model),xlab = "under five deaths", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$polio, rstandard(mlr_model),xlab = "polio", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$diphtheria, rstandard(mlr_model),xlab = "diphtheria", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$hiv_aids, rstandard(mlr_model),xlab = "hiv_aids", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$gdp, rstandard(mlr_model),xlab = "gdp", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied
+plot(life_exp4$thinness_1_19_years, rstandard(mlr_model),xlab = "thinness_1_19", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+lm_full <- lm(life_expectancy ~ status + adult_mortality + hepatitis_b + log(measles + 1) + bmi + log(under_five_deaths + 1) + polio + log(hiv_aids) + log(population) + thinness_5_9_years + schooling + log(infant_deaths + 1) + diphtheria + log(gdp) + thinness_1_19_years + income_composition_of_resources + adult_mortality:status + hepatitis_b:status + log(measles + 1):status + bmi:status + log(under_five_deaths + 1):status + polio:status + log(hiv_aids):status + log(population):status + thinness_5_9_years:status + schooling:status + log(infant_deaths + 1):status + diphtheria:status + log(gdp):status + thinness_1_19_years:status + income_composition_of_resources:status, data = life_exp4)
+
+summary(lm_full)
+```
+
+```{r}
+pacman::p_load(MASS, car)
+summary(powerTransform(lm_full))
+boxcox(lm_full, lambda=seq(0.7, 3, by=0.05))
+```
+
+```{r}
+model_step <- step(lm_full, trace = 0)
+
+summary(model_step)
+```
+
+```{r}
+lm_final <- lm(life_expectancy ~ status + adult_mortality + hepatitis_b + log(measles + 1) + log(hiv_aids) + status:adult_mortality, data = life_exp4)
+summary (lm_final)
+
+```
+
+```{r}
+# standardized residuals
+r <- rstandard(lm_final)
+
+# fitted values
+yhat <- fitted(lm_final)
+
+# residual plot
+plot(yhat, r,
+     xlab = "Fitted values",
+     ylab = "Standardized residuals",
+     main = "Standardized Residuals vs Fitted")
+abline(h = 0, lty = 2)
+
+# QQ plot
+qqnorm(r)
+qqline(r)
+
+# Shapiro-Wilk
+shapiro.test(resid(lm_final))
+
+# outliers
+ind <- which(abs(r) > 2)
+life_exp4[ind, ]
+
+
+
+# leverage
+h <- hatvalues(lm_final)
+n <- nrow(life_exp4)
+p <- length(coef(lm_final)) - 1
+cutoff_leverage <- 2 * (p + 1) / n
+which(h > cutoff_leverage)
+
+# VIF
+library(car)
+
+vif(lm_final)
+```
+
+```{r}
+
+```
