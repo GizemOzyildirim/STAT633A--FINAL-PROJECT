@@ -1,0 +1,646 @@
+---
+title: "Project, STAT 633A"
+author: "Wasima Alam, Jennifer Soper, Gizem Ozyildirim"
+format: 
+   html:
+      self-contained: true
+echo: true
+message: false
+warning: false
+---
+
+## 
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(car)
+library(faraway)
+library(MASS)
+library(MuMIn)
+```
+
+### Data Cleaning
+
+```{r}
+
+# Data Cleaning Process
+life_exp <- read.csv("life_expectancy.csv")
+head(life_exp)
+
+# clean column names 
+life_exp <- clean_names(life_exp)
+
+# year 2015 only
+life_exp2 <- life_exp |>
+  filter(year == 2015)
+
+# check for missing values - NAs in Alcohol (177), Hepatitis B (9), BMI (2), Total expenditure (181), GDP (29), Population (41), Thinness 1 19 (2), Thinness 5 9 (2), Income (10), Schooling (10)
+summary(life_exp2)
+
+# remove variables due to high number of missing values
+# percent expenditure is a function of total expenditure with many zeros
+life_exp3 <- life_exp2 |>
+  dplyr::select(-alcohol, -total_expenditure, -percentage_expenditure)
+
+# remove remaining rows with missing values - 130 observations total
+life_exp4 <- na.omit(life_exp3)
+```
+
+### Full Additive Multiple Regression Model
+
+```{r}
+
+# Make status a dummy variable
+life_exp4$status <- as.factor(life_exp4$status)
+
+# Check reference level
+levels(life_exp4$status)
+
+# Developed = 0, developing = 1
+contrasts(life_exp4$status)
+
+# Fit full additive multiple regression model
+mlr_model <- lm(
+  life_expectancy ~ status + adult_mortality + infant_deaths + hepatitis_b + measles + bmi +
+    under_five_deaths + polio + diphtheria + hiv_aids + population +
+    gdp + thinness_1_19_years + thinness_5_9_years +
+    income_composition_of_resources + schooling,
+  data = life_exp4
+)
+
+summary(mlr_model)
+```
+
+### VIF - potential multicollinearity issues
+
+```{r}
+VIF <- round(vif(mlr_model), 2)
+vif <- as.data.frame(VIF)
+vif
+
+# VIF > 5 
+which(round(vif(mlr_model), 2) > 5)
+
+# VIF < 5
+which(round(vif(mlr_model), 2) < 5)
+```
+
+### Exploratory Visualization of the Relationship Between Life Expectancy and Other Predictors
+
+```{r}
+# Scatter plot - not used because too difficult to see relationships
+pairs(
+   life_expectancy ~ status + adult_mortality + infant_deaths + hepatitis_b + measles + bmi + population +
+    under_five_deaths + polio + diphtheria + hiv_aids +
+    gdp + thinness_1_19_years + thinness_5_9_years +
+    income_composition_of_resources + schooling,
+  data = life_exp4
+)
+
+
+```
+
+```{r}
+# Boxplot for dummy variable 
+boxplot(life_expectancy ~ status,
+        data = life_exp4,
+        main = "Life Expectancy by Status",
+        xlab = "Status",
+        ylab = "Life Expectancy")
+```
+
+Median life expectancy higher with less variability for developed countries vs developing countries.
+
+### Individual Scatter plots of response vs predictors - exploring the use of transformations on predictors
+
+```{r}
+plot(life_expectancy ~ adult_mortality, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ hepatitis_b, data = life_exp4)
+
+```
+
+```{r}
+# plot(life_expectancy ~ measles, data = life_exp4)
+plot(life_expectancy ~ log(measles + 1), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ bmi, data = life_exp4)
+```
+
+```{r}
+# plot(life_expectancy ~ under_five_deaths, data = life_exp4)
+plot(life_expectancy ~ log(under_five_deaths + 1), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ polio, data = life_exp4)
+```
+
+```{r}
+# plot(life_expectancy ~ hiv_aids, data = life_exp4)
+plot(life_expectancy ~ log(hiv_aids), data = life_exp4)
+```
+
+```{r}
+# plot(life_expectancy ~ population, data = life_exp4)
+plot(life_expectancy ~ log(population), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ thinness_5_9_years, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ schooling, data = life_exp4)
+```
+
+```{r}
+# plot(life_expectancy ~ infant_deaths, data = life_exp4)
+plot(life_expectancy ~ log(infant_deaths + 1), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ diphtheria, data = life_exp4)
+```
+
+```{r}
+# plot(life_expectancy ~ gdp, data = life_exp4)
+plot(life_expectancy ~ log(gdp), data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ thinness_1_19_years, data = life_exp4)
+```
+
+```{r}
+plot(life_expectancy ~ income_composition_of_resources, data = life_exp4)
+```
+
+### Standardized residuals vs predictors - confirming log transformations are appropriate
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$adult_mortality, rstandard(mlr_model),xlab = "Adult Mortality", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+plot (life_exp4$infant_deaths, rstandard(mlr_model),xlab = "infant death", ylab = "Standardized Residuals")
+
+# constant variance satisfied - transformation needed
+plot (log(life_exp4$infant_deaths), rstandard(mlr_model),xlab = "infant deaths", ylab = "Standardized Residuals")
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$hepatitis_b, rstandard(mlr_model),xlab = "hepatitis_b", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+plot(life_exp4$measles, rstandard(mlr_model),xlab = "measles", ylab = "Standardized Residuals")
+
+# constant variance satisfied - transformation needed
+plot(log(life_exp4$measles), rstandard(mlr_model),xlab = "Measles", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$bmi, rstandard(mlr_model),xlab = "bmi", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+
+plot(life_exp4$under_five_deaths, rstandard(mlr_model),xlab = "under_five_deaths", ylab = "Standardized Residuals")
+
+# constant variance satisfied - transformation needed
+plot(log(life_exp4$under_five_deaths), rstandard(mlr_model),xlab = "under five deaths", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$polio, rstandard(mlr_model),xlab = "polio", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$diphtheria, rstandard(mlr_model),xlab = "diphtheria", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+plot(life_exp4$hiv_aids, rstandard(mlr_model),xlab = "hiv_aids", ylab = "Standardized Residuals")
+
+# constant variance satisfied - log transformation needed
+plot(log(life_exp4$hiv_aids), rstandard(mlr_model),xlab = "hiv_aids", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+plot(life_exp4$gdp, rstandard(mlr_model),xlab = "gdp", ylab = "Standardized Residuals")
+
+# constant variance satisfied - log transformation needed
+plot(log(life_exp4$gdp), rstandard(mlr_model),xlab = "gdp", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+
+plot(life_exp4$population, rstandard(mlr_model),xlab = "Population", ylab = "Standardized Residuals")
+
+# constant variance satisfied - transformation needed
+plot(log(life_exp4$population), rstandard(mlr_model),xlab = "Population", ylab = "Standardized Residuals")
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+# mislabeled at thinness_1_19_years in dataset, actually represents 10-19 years
+plot(life_exp4$thinness_1_19_years, rstandard(mlr_model),xlab = "thinness_10_19", ylab = "Standardized Residuals")
+
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$thinness_5_9_years, rstandard(mlr_model),xlab = "thinness_5_9_years", ylab = "Standardized Residuals")
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$income_composition_of_resources, rstandard(mlr_model),xlab = "Income Composition of Resources", ylab = "Standardized Residuals")
+```
+
+```{r}
+# constant variance satisfied - no transformation needed
+plot(life_exp4$schooling, rstandard(mlr_model),xlab = "Schooling", ylab = "Standardized Residuals")
+```
+
+### Interaction plots - interactions between status and all predictors
+
+```{r}
+ggplot(life_exp4, aes(adult_mortality, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(log(infant_deaths + 1), life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(hepatitis_b, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(log(measles+ 1), life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(bmi, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(bmi, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(log(under_five_deaths +1), life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(polio, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(diphtheria, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(log(hiv_aids), life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(gdp, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(population, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(thinness_1_19_years, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(thinness_5_9_years, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(income_composition_of_resources, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+ggplot(life_exp4, aes(schooling, life_expectancy, colour = status)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+### Initial full model with transformations and interactions
+
+```{r}
+# Initial Full Model
+lm_full <- lm(life_expectancy ~ status + adult_mortality + hepatitis_b + log(measles + 1) + bmi + log(under_five_deaths + 1) + polio + log(hiv_aids) + log(population) + thinness_5_9_years + schooling + log(infant_deaths + 1) + diphtheria + log(gdp) + thinness_1_19_years + income_composition_of_resources + adult_mortality:status + hepatitis_b:status + log(measles + 1):status + bmi:status + log(under_five_deaths + 1):status + polio:status + log(hiv_aids):status + log(population):status + thinness_5_9_years:status + schooling:status + log(infant_deaths + 1):status + diphtheria:status + log(gdp):status + thinness_1_19_years:status + income_composition_of_resources:status, data = life_exp4)
+
+summary(lm_full)
+```
+
+### Trouble shooting initial full model - not full rank
+
+```{r}
+# Checking if model is full rank
+X <- model.matrix(lm_full)
+qrX <- qr(X)
+qrX$rank
+ncol(X)
+
+# 31 < 32 the rank is smaller than the number of columns so our model is not full rank. 
+```
+
+```{r}
+# use alias to identify terms that are perfectly colinear - interaction between status and log(hiv_aids)
+alias(lm_full)
+```
+
+```{r}
+# alias coefficients table
+summary(lm_full)$aliased
+
+```
+
+### Create new model with redundant interaction term removed
+
+```{r}
+lm_full2 <- lm(life_expectancy ~ status + adult_mortality + hepatitis_b + log(measles + 1) + bmi + log(under_five_deaths + 1) + polio + log(hiv_aids) + log(population) + thinness_5_9_years + schooling + log(infant_deaths + 1) + diphtheria + log(gdp) + thinness_1_19_years + income_composition_of_resources + adult_mortality:status + hepatitis_b:status + log(measles + 1):status + bmi:status + log(under_five_deaths + 1):status + polio:status + log(population):status + thinness_5_9_years:status + schooling:status + log(infant_deaths + 1):status + diphtheria:status + log(gdp):status + thinness_1_19_years:status + income_composition_of_resources:status, data = life_exp4)
+summary(lm_full2)
+```
+
+### Checking if Box Cox Transformation is useful
+
+```{r}
+# Box-Cox Transformation not needed because confidence interval contains 1
+summary(powerTransform(lm_full))
+boxcox(lm_full2, lambda=seq(0.7, 3, by=0.05))
+```
+
+### Model Selection Methods
+
+```{r}
+# Akaike Information Criterion (AIC) - step function
+model_step <- step(lm_full2, trace = 0)
+summary(model_step)
+```
+
+```{r}
+# model with only 4 interactions run in dredge
+lm_full3 <- lm(life_expectancy ~ status + adult_mortality + hepatitis_b + log(measles + 1) + bmi + log(under_five_deaths + 1) + polio + log(hiv_aids) + log(population) + thinness_5_9_years + schooling + log(infant_deaths + 1) + diphtheria + log(gdp) + thinness_1_19_years + income_composition_of_resources + adult_mortality:status + log(gdp):status + income_composition_of_resources:status + schooling:status, data = life_exp4)
+```
+
+```{r}
+# AIC - Dredge function
+options(na.action = "na.fail")
+dredge_mod <- dredge(lm_full3, rank = "AIC",
+                       subset = 
+                         dc("adult_mortality", "adult_mortality:status") &
+                         dc("status", "adult_mortality:status") &
+                         dc("log(gdp)", "log(gdp):status") &
+                         dc("status", "log(gdp):status") &
+                         dc("income_composition_of_resources", "income_composition_of_resources:status") &
+                         dc("status", "income_composition_of_resources:status") &
+                         dc("schooling", "schooling:status") &
+                         dc("status", "schooling:status"))
+dredge_mod
+```
+
+```{r}
+# extracting best model from dredge
+dredge_mod_best <- get.models(dredge_mod, subset = 1)[[1]]
+summary(dredge_mod_best)
+```
+
+### Final Full Model - same from step and dredge
+
+```{r}
+# Final Multiple Regression Model
+lm_final <- lm(life_expectancy ~ status + adult_mortality + hepatitis_b + log(measles + 1) + log(hiv_aids) + status:adult_mortality + status:income_composition_of_resources, data = life_exp4)
+summary (lm_final)
+```
+
+### Model Assumptions
+
+```{r}
+# standardized residuals
+r <- rstandard(lm_final)
+
+# fitted values
+yhat <- fitted(lm_final)
+
+# residual plot - constant variance satisfied
+plot(yhat, r,
+     xlab = "Fitted values",
+     ylab = "Standardized residuals",
+     main = "Standardized Residuals vs Fitted")
+abline(h = 0, lty = 2)
+
+# QQ plot - normality possibly satisfied
+qqnorm(r)
+qqline(r)
+
+# Shapiro-Wilk - confirms normality satisfied
+shapiro.test(resid(lm_final))
+
+```
+
+### Unusual Values
+
+```{r}
+# identifying outliers
+ind <- which(abs(r) > 2)
+life_exp4[ind, ]
+
+# leverage
+p <- 19
+n <- nrow(life_exp4)
+plot(hatvalues(lm_final), rstandard(lm_final),
+     xlab = "Leverage",
+     ylab = "Standardized Residuals")
+abline(v = 2*(p+1)/n, lty=2)
+abline(h = c(-2,2), lty = 2)
+
+# identifying high leverage points
+ind_lev <- which(hatvalues(lm_final) > 2*(p+1)/n)
+life_exp4[ind_lev,]
+```
+
+### Interaction plots for status and adult mortality - investigating group of countries
+
+```{r}
+# all countries included
+ggplot(life_exp4, aes(adult_mortality, life_expectancy, colour = status)) +
+  geom_point(size = 0.7, alpha = 0.6) +
+  geom_smooth(method = "lm") +
+  labs(x = "Adult mortality",
+       y = "Life expectancy",
+       title = "Interaction plot with all countries")
+
+# identifying group with low adult mortality, low life expectancy
+ind <- which(life_exp4$adult_mortality < 45) 
+life_exp4[ind,]
+
+# group removed
+life_exp5 <- life_exp4[-ind,] 
+
+# plot with 14 countries removed
+ggplot(life_exp5, aes(adult_mortality, life_expectancy, colour = status)) +
+  geom_point(size = 0.7, alpha = 0.6) +
+  geom_smooth(method = "lm") +
+  labs(x = "Adult mortality",
+       y = "Life expectancy",
+       title = "Interaction plot with 15 countries removed")
+```
+
+### Looking into inconsistencies within data set
+
+```{r}
+# measles defined as number of cases per 1000 people
+# 17 countries with counts > 1000
+life_exp4 |>
+  filter(measles > 1000)
+
+max(life_exp4$measles)
+
+# HIV/AIDS defined as deaths per 1000 live births, but in dataset as decimals
+max(life_exp4$hiv_aids)
+min(life_exp4$hiv_aids) # 0.1 deaths per 1000 births? Or 0.1 = 100/1000 deaths?
+
+life_exp4 |>
+  filter(status == "Developed")
+
+life_exp4 |>
+  filter(hiv_aids < 0.2) # 74 obs have hiv_aids = 0.1
+```
+
+```{r}
+# model summary table
+model_summary <- data.frame(
+  Beta_0_8 = c(
+    "Intercept",
+    "Status: Developing",
+    "Adult mortality",
+    "Hepatitis B",
+    "log(Measles + 1)",
+    "log(HIV/AIDS)",
+    "Income composition of resources",
+    "Status: Developing × Adult mortality",
+    "Status: Developing × Income composition of resources"
+  ),
+  Estimate = c(
+    79.623404,
+    -30.305370,
+    -0.084900,
+    0.027289,
+    -0.146168,
+    -1.314800,
+    2.878530,
+    0.068033,
+    27.424461
+  ),
+  Std_error = c(
+    17.678270,
+    17.817764,
+    0.021659,
+    0.009715,
+    0.074546,
+    0.275648,
+    18.822520,
+    0.021897,
+    19.002093
+  ),
+  t_value = c(
+    4.504,
+    -1.701,
+    -3.920,
+    2.809,
+    -1.961,
+    -4.770,
+    0.153,
+    3.107,
+    1.443
+  ),
+  p_value = c(
+    "1.55e-05",
+    "0.091540",
+    "0.000147",
+    "0.005795",
+    "0.052204",
+    "5.20e-06",
+    "0.878708",
+    "0.002356",
+    "0.151539"
+  ),
+  Significance = c(
+    "*",
+    ".",
+    "*",
+    "**",
+    ".",
+    "*",
+    "",
+    "**",
+    ""
+  )
+)
+
+model_summary
+```
+
+```{r}
+
+```
